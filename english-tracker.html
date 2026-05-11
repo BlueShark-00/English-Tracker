@@ -1,0 +1,2080 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>리스닝AI — 영어 리스닝 트래커</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.puter.com/v2/"></script>
+<style>
+:root{--bg:#0a0f1e;--surface:#111827;--surface2:#1c2333;--border:#2a3348;--accent:#818cf8;--accent2:#34d399;--text:#e2e8f0;--text2:#64748b;--danger:#f87171;--good:#34d399;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+
+/* PIN */
+#pinScreen{position:fixed;inset:0;background:var(--bg);z-index:999;display:none;align-items:center;justify-content:center;}
+.pin-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px 32px;text-align:center;width:100%;max-width:320px;}
+.pin-logo{font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:3px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px;}
+.pin-sub{font-size:13px;color:var(--text2);margin-bottom:28px;}
+.pin-dots{display:flex;justify-content:center;gap:14px;margin-bottom:28px;}
+.pin-dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--border);transition:all .2s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);}
+.pin-dot.error{background:var(--danger);border-color:var(--danger);}
+.pin-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.pin-key{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Space Mono',monospace;font-size:20px;padding:16px;border-radius:12px;cursor:pointer;transition:all .2s;}
+.pin-key:hover{background:var(--border);border-color:var(--accent);}
+.pin-key:active{transform:scale(.94);}
+.pin-key.del{font-size:16px;color:var(--text2);}
+.pin-err{color:var(--danger);font-size:13px;margin-top:14px;min-height:20px;}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;gap:12px;flex-wrap:wrap;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:3px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+nav{display:flex;gap:6px;flex-wrap:wrap;}
+nav button{background:none;border:1px solid var(--border);color:var(--text2);padding:7px 13px;border-radius:20px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:13px;transition:all .2s;}
+nav button.active,nav button:hover{border-color:var(--accent);color:var(--accent);background:rgba(129,140,248,.1);}
+.db-badge{font-size:11px;padding:4px 10px;border-radius:20px;font-family:'Space Mono',monospace;border:1px solid;}
+.db-ok{background:rgba(52,211,153,.1);color:var(--good);border-color:rgba(52,211,153,.3);}
+.db-err{background:rgba(248,113,113,.1);color:var(--danger);border-color:rgba(248,113,113,.3);}
+
+/* LAYOUT */
+main{max-width:800px;margin:0 auto;padding:24px 16px 80px;}
+.section{display:none;}.section.active{display:block;}
+.btn-p,.btn-g,.btn-d{border:none;cursor:pointer;border-radius:8px;font-family:'Noto Sans KR',sans-serif;transition:all .2s;font-size:13px;}
+.btn-p{background:var(--accent);color:#fff;padding:10px 20px;}
+.btn-p:hover{opacity:.85;}.btn-p:disabled{opacity:.4;cursor:not-allowed;}
+.btn-g{background:var(--surface2);color:var(--text2);padding:8px 14px;border:1px solid var(--border);}
+.btn-g:hover{color:var(--text);border-color:var(--accent);}
+.btn-d{background:rgba(248,113,113,.15);color:var(--danger);padding:6px 12px;font-size:12px;}
+.btn-d:hover{background:rgba(248,113,113,.3);}
+
+/* SEC HEADER */
+.sec-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;}
+
+/* RECORDS */
+.record-list{display:grid;gap:10px;}
+.record-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;transition:border-color .2s;}
+.record-card:hover{border-color:var(--accent);}
+.record-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.record-date{font-family:'Space Mono',monospace;font-size:11px;color:var(--text2);}
+.record-source{font-size:13px;color:var(--text);margin-top:3px;word-break:break-all;}
+.score-num{font-family:'Bebas Neue',sans-serif;font-size:26px;}
+.score-bar-bg{height:6px;background:var(--border);border-radius:3px;margin-top:8px;}
+.score-bar-fill{height:100%;border-radius:3px;transition:width .8s ease;}
+.record-memo{font-size:12px;color:var(--text2);margin-top:8px;font-style:italic;}
+.type-badge{font-size:10px;padding:2px 8px;border-radius:99px;background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;}
+.modal h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:20px;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 13px;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;transition:border-color .2s;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent);}
+.type-toggle{display:flex;gap:8px;}
+.type-btn{flex:1;padding:9px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Noto Sans KR',sans-serif;}
+.type-btn.active{border-color:var(--accent);background:rgba(129,140,248,.1);color:var(--accent);}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+.range-wrap{position:relative;}
+.range-wrap input[type=range]{width:100%;accent-color:var(--accent);}
+.range-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:3px;}
+.ott-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+@media(max-width:500px){.stats-row{grid-template-columns:1fr 1fr;}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;}
+.stat-label{font-size:11px;color:var(--text2);margin-bottom:6px;}
+.stat-value{font-family:'Bebas Neue',sans-serif;font-size:28px;}
+
+/* CHART */
+canvas{width:100%;border-radius:10px;}
+.chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px;}
+
+/* AI */
+.ai-result{background:var(--surface2);border-radius:12px;padding:16px;border-left:3px solid var(--accent);margin-top:12px;}
+.ai-label{font-size:11px;color:var(--accent);letter-spacing:1px;margin-bottom:8px;font-family:'Space Mono',monospace;}
+.loading span{animation:blink 1.2s infinite;display:inline-block;margin:0 1px;}
+.loading span:nth-child(2){animation-delay:.2s;}.loading span:nth-child(3){animation-delay:.4s;}
+@keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+
+/* SCRIPT TAB */
+.mode-toggle{display:flex;gap:6px;margin-bottom:16px;}
+.mode-btn{flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Noto Sans KR',sans-serif;}
+.mode-btn.active{border-color:var(--accent);background:rgba(129,140,248,.1);color:var(--accent);}
+.topic-wrap{display:flex;flex-wrap:wrap;gap:6px;}
+.topic-btn{padding:6px 12px;border-radius:99px;font-size:12px;border:1.5px solid var(--border);background:var(--bg);color:var(--text2);cursor:pointer;transition:all .2s;font-family:'Noto Sans KR',sans-serif;}
+.topic-btn.active{border-color:var(--accent);background:rgba(129,140,248,.1);color:var(--accent);font-weight:700;}
+.script-box{background:var(--bg);border-radius:10px;padding:16px;font-size:14px;line-height:2;color:#c7d2fe;white-space:pre-wrap;font-family:'Noto Sans KR',sans-serif;}
+.korean-toggle{width:100%;background:none;border:none;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;color:var(--accent2);font-size:13px;font-weight:600;font-family:'Noto Sans KR',sans-serif;}
+.clickable-word{cursor:pointer;border-radius:3px;transition:background .15s;}
+.clickable-word:hover{background:rgba(129,140,248,.25);}
+.clickable-word:active{background:rgba(129,140,248,.4);}
+.vocab-item{padding:10px 0;border-top:1px solid var(--border);}
+.vocab-item:first-child{border-top:none;}
+.accent-btn{background:var(--surface2);border:1.5px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .2s;font-family:'Noto Sans KR',sans-serif;}
+.accent-btn.active{border-color:var(--accent);background:rgba(129,140,248,.1);color:var(--accent);font-weight:700;}
+
+/* MISC */
+.empty{text-align:center;padding:50px 20px;color:var(--text2);}
+.empty .icon{font-size:44px;margin-bottom:10px;}
+.empty p{font-size:13px;line-height:1.7;}
+::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:var(--surface);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- PIN -->
+<div id="pinScreen">
+  <div class="pin-box">
+    <div class="pin-logo">리스닝AI</div>
+    <div class="pin-sub">4자리 PIN을 입력하세요</div>
+    <div class="pin-dots">
+      <div class="pin-dot" id="pd0"></div>
+      <div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div>
+      <div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="pin-keypad">
+      <button class="pin-key" onclick="pinKey('1')">1</button>
+      <button class="pin-key" onclick="pinKey('2')">2</button>
+      <button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button>
+      <button class="pin-key" onclick="pinKey('5')">5</button>
+      <button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button>
+      <button class="pin-key" onclick="pinKey('8')">8</button>
+      <button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinKey('0')" style="grid-column:2">0</button>
+      <button class="pin-key del" onclick="pinDel()">⌫</button>
+    </div>
+    <div class="pin-err" id="pinErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<header>
+  <div style="display:flex;flex-direction:column;line-height:1.2;">
+    <div class="logo">리스닝AI</div>
+    <div style="font-size:8px;color:var(--text2);font-family:'Space Mono',monospace;letter-spacing:0.5px;">v2026.05.06-2058</div>
+  </div>
+  <nav>
+    <button class="active" onclick="showTab('records',this)">📋 기록</button>
+    <button onclick="showTab('analysis',this)">📊 분석</button>
+    <button onclick="showTab('script',this)">🎧 AI 스크립트</button>
+  </nav>
+  <span id="dbBadge" class="db-badge db-ok" title="DB 연결됨" style="font-size:16px;padding:0 4px;border:none;background:none;">●</span>
+</header>
+
+<main>
+  <!-- 기록 탭 -->
+  <div id="records" class="section active">
+    <div class="sec-header">
+      <div class="sec-title">📋 학습 기록</div>
+      <button class="btn-p" onclick="openRecordModal()">+ 기록 추가</button>
+    </div>
+    <div class="record-list" id="recordList"></div>
+  </div>
+
+  <!-- 분석 탭 -->
+  <div id="analysis" class="section">
+    <div class="sec-header">
+      <div class="sec-title">📊 학습 분석</div>
+      <button class="btn-p" id="aiAnalysisBtn" onclick="runAIAnalysis()">🤖 오늘 분석</button>
+    </div>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="chart-wrap">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px">📈 이해도 추이</div>
+      <canvas id="trendCanvas" height="160"></canvas>
+      <div id="trendEmpty" style="display:none;text-align:center;padding:30px;color:var(--text2);font-size:13px">기록이 2개 이상 있어야 그래프가 표시됩니다</div>
+    </div>
+    <!-- 분석 히스토리 목록 -->
+    <div id="analysisHistoryList" style="margin-bottom:12px;"></div>
+    <!-- 현재 분석 결과 -->
+    <div id="aiAnalysisResult"></div>
+  </div>
+
+  <!-- AI 스크립트 탭 -->
+  <div id="script" class="section">
+    <div class="sec-title" style="margin-bottom:16px">🎧 AI 스크립트</div>
+
+    <!-- 설정 -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:14px;">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">📌 주제</div>
+      <div class="topic-wrap" id="topicWrap"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">⏱ 길이</div>
+          <select id="durSelect" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;outline:none;font-family:'Noto Sans KR',sans-serif;font-size:13px;">
+            <option value="short">짧게 (30초)</option>
+            <option value="medium">보통 (1분)</option>
+            <option value="long">길게 (2분)</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">🎓 난이도</div>
+          <input id="levelInput" placeholder="비우면 AI 자동 설정" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;outline:none;font-family:'Noto Sans KR',sans-serif;font-size:13px;">
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-p" id="genScriptBtn15" onclick="generateScript('gemini-2.5-flash-lite')" style="width:100%;padding:13px;font-size:14px;margin-bottom:10px;">✨ AI 스크립트 생성</button>
+
+    <!-- 캐시 안내 -->
+    <div id="scriptCacheNote" style="display:none;font-size:11px;color:var(--text2);margin-bottom:10px;padding:6px 14px;background:var(--surface2);border-radius:8px;justify-content:space-between;align-items:center;">
+      <span>📦 오늘 이미 생성된 스크립트 (API 절약됨)</span>
+    </div>
+
+    <!-- 저장된 스크립트 목록 -->
+    <div id="savedScriptList" style="margin-bottom:14px;"></div>
+
+    <!-- 스크립트 결과 -->
+    <div id="scriptResult" style="display:none;">
+      <div style="background:var(--surface);border:1px solid #312e81;border-radius:14px;padding:18px;margin-bottom:12px;">
+        <div style="margin-bottom:14px;">
+          <div id="scriptTitle" style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:3px;"></div>
+          <div id="scriptMeta" style="font-size:12px;color:var(--accent);"></div>
+        </div>
+
+        <!-- TTS 컨트롤 -->
+        <div style="text-align:center;">
+          <!-- TTS 엔진 선택 -->
+          <div style="display:flex;justify-content:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
+            <button class="accent-btn active" id="ttsEngGoogle" onclick="setTTSEngine('google')">🔊 Google</button>
+            <button class="accent-btn" id="ttsEngPuter" onclick="setTTSEngine('puter')">🆓 Puter</button>
+          </div>
+
+          <!-- API 키 안내 -->
+          <div id="ttsKeyNote" style="display:none;font-size:11px;color:var(--text2);margin-bottom:8px;padding:5px 10px;background:var(--surface2);border-radius:8px;text-align:center;">
+            Google TTS 키가 없어요. Supabase app_config에 google_tts_key 저장 필요
+          </div>
+
+          <!-- 발음 선택 -->
+          <div style="display:flex;justify-content:center;gap:6px;margin-bottom:10px;">
+            <button class="accent-btn active" id="accentUS" onclick="setAccent('us')">🇺🇸 미국</button>
+            <button class="accent-btn" id="accentUK" onclick="setAccent('uk')">🇬🇧 영국</button>
+            <button class="accent-btn" id="accentIN" onclick="setAccent('in')">🇮🇳 인도</button>
+          </div>
+
+          <!-- 속도 -->
+          <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:4px;">
+            <span style="font-size:11px;color:var(--text2);">🐢</span>
+            <input type="range" id="speedRange" min="0.5" max="1.5" step="0.05" value="0.85"
+              oninput="document.getElementById('speedLabel').textContent=parseFloat(this.value).toFixed(2)+'x'"
+              style="width:130px;accent-color:var(--accent);">
+            <span style="font-size:11px;color:var(--accent);font-family:'Space Mono',monospace;min-width:36px;" id="speedLabel">0.85x</span>
+            <span style="font-size:11px;color:var(--text2);">🐇</span>
+          </div>
+          <div id="autoSpeedNote" style="font-size:11px;color:var(--text2);margin-bottom:12px;">난이도에 맞게 자동 설정됨</div>
+
+          <button id="ttsBtn" onclick="toggleSpeak()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;padding:12px 32px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px #6366f140;font-family:'Noto Sans KR',sans-serif;">▶ 듣기 시작</button>
+        </div>
+
+        <!-- 재생 게이지 -->
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:6px;">
+            <span id="gaugeLabel">0 / 0 문장</span>
+            <span id="gaugeSpeaker" style="color:var(--accent);font-weight:700;"></span>
+          </div>
+          <div id="gaugeTrack" onclick="seekGauge(event)" style="background:var(--border);border-radius:99px;height:8px;overflow:hidden;cursor:pointer;position:relative;">
+            <div id="gaugeBar" style="height:100%;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:99px;width:0%;transition:width .2s;pointer-events:none;"></div>
+          </div>
+          <div style="font-size:10px;color:var(--text2);margin-top:4px;text-align:center;">게이지 터치로 원하는 위치로 이동</div>
+        </div>
+      </div>
+
+      <!-- 영어 스크립트 토글 (한국어 번역 위) -->
+      <div style="background:var(--surface);border:1px solid #312e81;border-radius:14px;overflow:hidden;margin-bottom:12px;">
+        <button onclick="toggleEngScript()" style="width:100%;background:none;border:none;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+          <span style="font-size:13px;color:var(--accent);font-weight:600;">📄 영어 스크립트</span>
+          <span id="engScriptArrow" style="transition:transform .3s;font-size:18px;color:var(--accent);">⌄</span>
+        </button>
+        <div id="engScriptBox" style="display:none;padding:0 18px 16px;">
+          <div style="border-top:1px solid #312e81;padding-top:14px;">
+            <div class="script-box" id="scriptTextToggle" style="font-size:13px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 한국어 번역 토글 -->
+      <div style="background:#0c1a1a;border:1px solid #134e4a;border-radius:14px;overflow:hidden;margin-bottom:12px;">
+        <button class="korean-toggle" onclick="toggleKorean()">
+          <span>🇰🇷 한국어 번역</span>
+          <span id="koreanArrow" style="transition:transform .3s;font-size:18px;">⌄</span>
+        </button>
+        <div id="koreanBox" style="display:none;padding:0 18px 16px;">
+          <div style="border-top:1px solid #134e4a;padding-top:14px;font-size:13px;color:#99f6e4;line-height:1.8;" id="koreanText"></div>
+        </div>
+      </div>
+
+      <!-- 핵심 표현 -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;">
+        <div style="font-size:13px;color:#fbbf24;font-weight:700;margin-bottom:12px;">📖 핵심 표현</div>
+        <div id="vocabList"></div>
+      </div>
+
+      <!-- 학습 팁 -->
+      <div style="background:#1c1917;border:1px solid #44403c;border-radius:14px;padding:16px;">
+        <div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:6px;">💡 학습 팁</div>
+        <div id="scriptTips" style="font-size:13px;color:#d6d3d1;line-height:1.7;"></div>
+      </div>
+
+      <!-- 기록 추가 버튼 -->
+      <button onclick="openScriptRecordModal()" style="width:100%;margin-top:12px;background:var(--surface2);border:1.5px solid var(--border);color:var(--text2);border-radius:12px;padding:12px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .2s;"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+        📋 들었어요 — 기록 추가
+      </button>
+    </div>
+  </div>
+</main>
+
+<!-- 단어 번역 팝업 -->
+<div id="wordPopup" style="display:none;position:fixed;z-index:500;background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,.5);max-width:240px;min-width:160px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <span id="popupWord" style="font-size:16px;font-weight:700;color:var(--accent);"></span>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button id="popupSpeaker" onclick="speakWord()" style="background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:0;">🔊</button>
+      <button onclick="closeWordPopup()" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:0;">✕</button>
+    </div>
+  </div>
+  <div id="popupMeaning" style="font-size:14px;color:var(--text);line-height:1.5;">번역 중...</div>
+</div>
+
+<!-- AI 스크립트 기록 모달 -->
+<div class="modal-bg" id="scriptRecordModal">
+  <div class="modal">
+    <h2>🎧 스크립트 기록 추가</h2>
+    <div id="scriptRecordInfo" style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;color:var(--text2);"></div>
+    <div class="fg">
+      <label>🎧 자막 없이 이해도: <span id="scriptScoreNoSub" style="color:var(--accent);font-weight:700;">50%</span></label>
+      <div class="range-wrap">
+        <input type="range" id="scriptScoreNoSubRange" min="0" max="100" value="50"
+          oninput="document.getElementById('scriptScoreNoSub').textContent=this.value+'%'">
+        <div class="range-labels"><span>0% 전혀</span><span>50% 절반</span><span>100% 완벽</span></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>📄 자막 보면서 이해도: <span id="scriptScoreWithSub" style="color:var(--accent);font-weight:700;">70%</span></label>
+      <div class="range-wrap">
+        <input type="range" id="scriptScoreWithSubRange" min="0" max="100" value="70"
+          oninput="document.getElementById('scriptScoreWithSub').textContent=this.value+'%'">
+        <div class="range-labels"><span>0% 전혀</span><span>50% 절반</span><span>100% 완벽</span></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>📝 메모</label>
+      <textarea id="scriptRecordMemo" rows="2" placeholder="어떤 점이 어려웠나요?"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-g" onclick="document.getElementById('scriptRecordModal').classList.remove('open')">취소</button>
+      <button class="btn-p" onclick="saveScriptRecord()">기록 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 추천 클립 피드백 모달 -->
+<div class="modal-bg" id="clipFeedbackModal">
+  <div class="modal">
+    <h2>📋 클립 피드백</h2>
+    <div id="clipFeedbackInfo" style="background:var(--surface2);border-radius:8px;padding:10px;margin-bottom:14px;font-size:13px;color:var(--text2);"></div>
+    <div class="fg">
+      <label>🎧 자막 없이 이해도: <span id="clipScoreNoSub" style="color:var(--accent);font-weight:700;">50%</span></label>
+      <div class="range-wrap">
+        <input type="range" id="clipScoreNoSubRange" min="0" max="100" value="50"
+          oninput="document.getElementById('clipScoreNoSub').textContent=this.value+'%'">
+        <div class="range-labels"><span>0% 전혀</span><span>50% 절반</span><span>100% 완벽</span></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>📄 자막 보면서 이해도: <span id="clipScoreWithSub" style="color:var(--accent);font-weight:700;">70%</span></label>
+      <div class="range-wrap">
+        <input type="range" id="clipScoreWithSubRange" min="0" max="100" value="70"
+          oninput="document.getElementById('clipScoreWithSub').textContent=this.value+'%'">
+        <div class="range-labels"><span>0% 전혀</span><span>50% 절반</span><span>100% 완벽</span></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>📝 메모</label>
+      <textarea id="clipFeedbackMemo" rows="2" placeholder="어떤 점이 어려웠나요?"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-g" onclick="document.getElementById('clipFeedbackModal').classList.remove('open')">취소</button>
+      <button class="btn-p" onclick="saveClipFeedback()">기록 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 기록 추가 모달 -->
+<div class="modal-bg" id="recordModal">
+  <div class="modal">
+    <h2>학습 기록 추가</h2>
+    <div class="fg">
+      <label>📅 날짜</label>
+      <input type="date" id="rDate">
+    </div>
+    <div class="fg">
+      <label>📌 유형</label>
+      <div class="type-toggle">
+        <button class="type-btn active" id="typeUrlBtn" onclick="setType('url')">🌐 웹사이트 URL</button>
+        <button class="type-btn" id="typeOttBtn" onclick="setType('ott')">📺 OTT</button>
+      </div>
+    </div>
+    <div class="fg" id="urlField">
+      <label>🔗 URL</label>
+      <input type="url" id="rUrl" placeholder="https://...">
+    </div>
+    <div class="fg" id="ottField" style="display:none;">
+      <label>📺 OTT 정보</label>
+      <div class="ott-row">
+        <input id="rOttName" placeholder="넷플릭스, 유튜브...">
+        <input id="rOttSeason" type="number" placeholder="시즌" min="1">
+        <input id="rOttEp" type="number" placeholder="화" min="1">
+      </div>
+    </div>
+    <div class="fg">
+      <label>🎧 자막 없이 이해도: <span id="scoreDisplay" style="color:var(--accent);font-weight:700;">50%</span></label>
+      <div class="range-wrap">
+        <input type="range" id="rScore" min="0" max="100" value="50" oninput="document.getElementById('scoreDisplay').textContent=this.value+'%'">
+        <div class="range-labels"><span>0% 전혀</span><span>50% 절반</span><span>100% 완벽</span></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>📄 자막 보면서 이해도: <span id="scoreWithSubDisplay" style="color:var(--accent);font-weight:700;">70%</span></label>
+      <div class="range-wrap">
+        <input type="range" id="rScoreWithSub" min="0" max="100" value="70" oninput="document.getElementById('scoreWithSubDisplay').textContent=this.value+'%'">
+        <div class="range-labels"><span>0% 전혀</span><span>50% 절반</span><span>100% 완벽</span></div>
+      </div>
+    </div>
+    <div class="fg">
+      <label>📝 메모 (어렵거나 느낀 점)</label>
+      <textarea id="rMemo" rows="3" placeholder="예: 빠른 발음이 어렵고 슬랭이 많았음..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-g" onclick="closeRecordModal()">취소</button>
+      <button class="btn-p" onclick="saveRecord()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────
+//  CONSTANTS
+// ──────────────────────────────────────────
+const HL_URL  = 'https://gorxkrihidgcyaujcrqt.supabase.co';
+const HL_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdvcnhrcmloaWRnY3lhdWpjcnF0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMzgyMTAsImV4cCI6MjA5MjkxNDIxMH0.GJ_6y8MBe7RCMjNMdsYZ9t4WAl-P-FPvPSkHaZALLhY';
+let GEMINI_KEY = ''; // Supabase app_config에서 런타임에 불러옴
+const PIN_CODE = '7711';
+
+const TOPICS = ['일상대화','뉴스/시사','비즈니스','드라마/영화','강의/교육','인터뷰','여행','기술/과학'];
+const CREATE_SQL = `-- 영어 리스닝 기록
+create table if not exists eng_records (
+  id uuid primary key default gen_random_uuid(),
+  log_date date not null, source_type text not null,
+  source text not null, score integer not null,
+  memo text, created_at timestamptz default now()
+);
+alter table eng_records disable row level security;
+-- AI 분석 캐시 (하루 1회)
+create table if not exists eng_analysis_cache (
+  id uuid primary key default gen_random_uuid(),
+  cache_date date not null unique,
+  record_count integer not null,
+  result jsonb not null,
+  created_at timestamptz default now()
+);
+alter table eng_analysis_cache disable row level security;
+-- 스크립트 저장 (날짜+주제+길이별)
+create table if not exists eng_scripts (
+  id uuid primary key default gen_random_uuid(),
+  script_date date not null, topic text not null,
+  duration text not null, level_label text not null,
+  result jsonb not null, created_at timestamptz default now()
+);
+alter table eng_scripts disable row level security;`;
+
+// ──────────────────────────────────────────
+//  STATE
+// ──────────────────────────────────────────
+let sb = null;
+let records = [];
+let savedScripts = []; // 저장된 스크립트 목록
+let analysisHistory = []; // 분석 히스토리
+let pinInput = '';
+let editType = 'url';
+let selTopic = '일상대화';
+let curScript = null;
+let isSpeaking = false;
+let curMode = 'listen';
+let showKorean = false;
+let selAccent = 'us';
+let ttsEngine = 'google'; // google | puter
+let ttsKeys = {};
+let youtubeApiKey = '';
+
+// ──────────────────────────────────────────
+//  INIT
+// ──────────────────────────────────────────
+async function initApp() {
+  buildTopics();
+  document.getElementById('rDate').value = dStr(new Date());
+
+  if (!sessionStorage.getItem('el_auth')) {
+    showPin();
+    const wait = setInterval(() => {
+      if (sessionStorage.getItem('el_auth')) {
+        clearInterval(wait);
+        connectDB();
+      }
+    }, 200);
+    return;
+  }
+  connectDB();
+}
+
+async function connectDB() {
+  sb = supabase.createClient(HL_URL, HL_KEY);
+  try {
+    const { error } = await sb.from('eng_records').select('id').limit(1);
+    if (error) throw error;
+    // Gemini 키 + TTS 키 Supabase에서 불러오기
+    const { data: cfgRows } = await sb.from('app_config').select('key,value')
+      .in('key', ['gemini_key_english', 'google_tts_key', 'youtube_api_key']);
+    if (cfgRows) {
+      cfgRows.forEach(r => {
+        if (r.key === 'gemini_key_english') GEMINI_KEY = r.value;
+        if (r.key === 'google_tts_key') ttsKeys.google = r.value;
+        if (r.key === 'youtube_api_key') youtubeApiKey = r.value;
+      });
+    }
+    document.getElementById('dbBadge').textContent = '●'
+document.getElementById('dbBadge').title = 'DB 연결됨';
+    document.getElementById('dbBadge').className = 'db-badge db-ok';
+    await loadAll(); // 연결 성공 후 데이터 로드 (에러나도 DB 오류로 표시 안 함)
+  } catch (e) {
+    document.getElementById('dbBadge').textContent = '●'
+document.getElementById('dbBadge').title = 'DB 오류';
+    document.getElementById('dbBadge').className = 'db-badge db-err';
+    alert('DB 연결 오류:\n' + e.message);
+    if (e.message && e.message.includes('does not exist')) {
+      alert('테이블이 없습니다!\nSupabase → SQL Editor에서 아래 SQL을 실행하세요:\n\n' + CREATE_SQL);
+    }
+  }
+}
+
+async function loadAll() {
+  const [recRes, scriptRes, analysisRes] = await Promise.all([
+    sb.from('eng_records').select('*').order('log_date', { ascending: false }),
+    sb.from('eng_scripts').select('*').order('created_at', { ascending: false }),
+    sb.from('eng_analysis_cache').select('*').order('cache_date', { ascending: false })
+  ]);
+  const errors = [];
+  if (recRes.error) errors.push('eng_records: ' + recRes.error.message);
+  if (scriptRes.error) errors.push('eng_scripts: ' + scriptRes.error.message);
+  if (analysisRes.error) errors.push('eng_analysis_cache: ' + analysisRes.error.message);
+  if (errors.length) {
+    document.getElementById('dbBadge').textContent = '●'
+document.getElementById('dbBadge').title = 'DB 오류';
+    document.getElementById('dbBadge').className = 'db-badge db-err';
+    document.getElementById('dbBadge').title = errors.join('\n');
+    alert('DB 오류:\n' + errors.join('\n'));
+  }
+  records = recRes.data || [];
+  savedScripts = scriptRes.data || [];
+  analysisHistory = analysisRes.data || [];
+  renderRecords();
+  renderStats();
+  renderTrend();
+  renderScriptList();
+  renderAnalysisHistory();
+}
+
+// ──────────────────────────────────────────
+//  PIN
+// ──────────────────────────────────────────
+function showPin() { document.getElementById('pinScreen').style.display = 'flex'; pinInput = ''; updatePinDots(); }
+function hidePin() { document.getElementById('pinScreen').style.display = 'none'; }
+function pinKey(n) {
+  if (pinInput.length >= 4) return;
+  pinInput += n; updatePinDots();
+  if (pinInput.length === 4) setTimeout(checkPin, 120);
+}
+function pinDel() { pinInput = pinInput.slice(0, -1); updatePinDots(); document.getElementById('pinErr').textContent = ''; }
+function updatePinDots() {
+  for (let i = 0; i < 4; i++) {
+    const d = document.getElementById('pd' + i);
+    d.classList.toggle('filled', i < pinInput.length);
+    d.classList.remove('error');
+  }
+}
+function checkPin() {
+  if (pinInput === PIN_CODE) {
+    hidePin();
+    sessionStorage.setItem('el_auth', '1');
+  } else {
+    for (let i = 0; i < 4; i++) document.getElementById('pd' + i).classList.add('error');
+    document.getElementById('pinErr').textContent = 'PIN이 틀렸습니다';
+    setTimeout(() => { pinInput = ''; updatePinDots(); document.getElementById('pinErr').textContent = ''; }, 900);
+  }
+}
+
+// ──────────────────────────────────────────
+//  NAV
+// ──────────────────────────────────────────
+function showTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'analysis') { renderStats(); renderTrend(); }
+}
+
+// ──────────────────────────────────────────
+//  RECORDS
+// ──────────────────────────────────────────
+function renderRecords() {
+  const el = document.getElementById('recordList');
+  if (!records.length) {
+    el.innerHTML = `<div class="empty"><div class="icon">🎧</div><p>아직 학습 기록이 없어요.<br>+ 버튼으로 첫 번째 기록을 추가해보세요!</p></div>`;
+    return;
+  }
+  el.innerHTML = records.map(r => {
+    const color = r.score < 30 ? 'var(--danger)' : r.score < 55 ? '#f59e0b' : r.score < 75 ? 'var(--accent)' : 'var(--good)';
+    const isUrl = r.source_type === 'url';
+    // URL이면 도메인만 표시하고 클릭하면 새 탭으로 열기
+    let srcDisplay = '';
+    if (isUrl) {
+      try {
+        const u = new URL(r.source);
+        const domain = u.hostname.replace('www.', '');
+        srcDisplay = `<a href="${r.source}" target="_blank" rel="noopener"
+          style="color:var(--accent);text-decoration:none;font-size:13px;word-break:break-all;"
+          onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+          🔗 ${domain}${u.pathname.length > 1 ? u.pathname.slice(0, 30) + (u.pathname.length > 30 ? '...' : '') : ''}
+        </a>`;
+      } catch(e) {
+        srcDisplay = `<span style="font-size:13px;color:var(--text);">${r.source}</span>`;
+      }
+    } else {
+      srcDisplay = `<span style="font-size:13px;color:var(--text);">📺 ${r.source}</span>`;
+    }
+    return `<div class="record-card">
+      <div class="record-top">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            <span class="record-date">${r.log_date}</span>
+            <span class="type-badge">${isUrl ? '🌐 웹' : '📺 OTT'}</span>
+          </div>
+          ${srcDisplay}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:12px;">
+          <span class="score-num" style="color:${color}">${r.score}%</span>
+          <button class="btn-d" onclick="deleteRecord('${r.id}')">삭제</button>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-bottom:3px;">
+          <span>🎧 자막없이</span><span>${r.score_no_sub ?? r.score}%</span>
+        </div>
+        <div class="score-bar-bg" style="margin-top:0;"><div class="score-bar-fill" style="width:${r.score_no_sub ?? r.score}%;background:${color}"></div></div>
+        ${r.score_with_sub != null ? `
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:6px;margin-bottom:3px;">
+          <span>📄 자막보며</span><span>${r.score_with_sub}%</span>
+        </div>
+        <div class="score-bar-bg" style="margin-top:0;"><div class="score-bar-fill" style="width:${r.score_with_sub}%;background:var(--good)"></div></div>` : ''}
+      </div>
+      ${r.memo ? `<div class="record-memo">💬 ${r.memo}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openRecordModal() {
+  setType('url');
+  document.getElementById('rDate').value = dStr(new Date());
+  document.getElementById('rUrl').value = '';
+  document.getElementById('rOttName').value = '';
+  document.getElementById('rOttSeason').value = '';
+  document.getElementById('rOttEp').value = '';
+  document.getElementById('rScore').value = 50;
+  document.getElementById('scoreDisplay').textContent = '50%';
+  document.getElementById('rScoreWithSub').value = 70;
+  document.getElementById('scoreWithSubDisplay').textContent = '70%';
+  document.getElementById('rMemo').value = '';
+  document.getElementById('recordModal').classList.add('open');
+}
+function closeRecordModal() { document.getElementById('recordModal').classList.remove('open'); }
+
+function setType(t) {
+  editType = t;
+  document.getElementById('typeUrlBtn').classList.toggle('active', t === 'url');
+  document.getElementById('typeOttBtn').classList.toggle('active', t === 'ott');
+  document.getElementById('urlField').style.display = t === 'url' ? '' : 'none';
+  document.getElementById('ottField').style.display = t === 'ott' ? '' : 'none';
+}
+
+async function saveRecord() {
+  const date = document.getElementById('rDate').value;
+  if (!date) return alert('날짜를 입력하세요.');
+  let source = '';
+  if (editType === 'url') {
+    source = document.getElementById('rUrl').value.trim();
+    if (!source) return alert('URL을 입력하세요.');
+  } else {
+    const name = document.getElementById('rOttName').value.trim();
+    const season = document.getElementById('rOttSeason').value || '1';
+    const ep = document.getElementById('rOttEp').value;
+    if (!name || !ep) return alert('OTT 이름과 화수를 입력하세요.');
+    source = `${name} S${season}E${ep}`;
+  }
+  const scoreNoSub = Number(document.getElementById('rScore').value);
+  const scoreWithSub = Number(document.getElementById('rScoreWithSub').value);
+  const memo = document.getElementById('rMemo').value.trim();
+  try {
+    const { error } = await sb.from('eng_records').insert({
+      log_date: date, source_type: editType, source,
+      score: scoreNoSub,
+      score_no_sub: scoreNoSub,
+      score_with_sub: scoreWithSub,
+      memo: memo || null
+    });
+    if (error) throw error;
+    closeRecordModal();
+    await loadAll();
+  } catch (e) {
+    alert('저장 실패: ' + e.message);
+  }
+}
+
+async function deleteRecord(id) {
+  if (!confirm('삭제할까요?')) return;
+  await sb.from('eng_records').delete().eq('id', id);
+  records = records.filter(r => r.id !== id);
+  renderRecords(); renderStats(); renderTrend();
+}
+
+// ──────────────────────────────────────────
+//  STATS & CHART
+// ──────────────────────────────────────────
+function getLevel(avg) {
+  if (avg === null) return '—';
+  if (avg < 20) return 'A1 완전초보';
+  if (avg < 35) return 'A2 초급';
+  if (avg < 50) return 'B1 초중급';
+  if (avg < 65) return 'B2 중급';
+  if (avg < 80) return 'C1 중고급';
+  return 'C2 고급';
+}
+
+function avgScore() {
+  if (!records.length) return null;
+  // 최근 15일 기록만 반영
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 15);
+  const cutoffStr = dStr(cutoff);
+  const recent = records.filter(r => r.log_date >= cutoffStr);
+  if (!recent.length) return null;
+  return Math.round(recent.reduce((a, b) => a + b.score, 0) / recent.length);
+}
+
+const LEVEL_INFO = {
+  'A1 완전초보': '원어민의 말을 거의 알아듣지 못하는 단계. 매우 느리고 단순한 단어만 이해 가능.',
+  'A2 초급': '익숙한 주제의 짧고 단순한 표현 이해 가능. 일상적인 단어와 구문 파악 시작.',
+  'B1 초중급': '명확한 표준 발음의 일상 대화 이해 가능. 친숙한 주제에서 요점 파악.',
+  'B2 중급': '복잡한 내용과 추상적 주제도 이해. 원어민과 자연스러운 속도로 소통 가능.',
+  'C1 중고급': '다양한 주제의 긴 내용 이해. 관용구·함축적 표현·빠른 발음도 대부분 파악.',
+  'C2 고급': '원어민 수준. 어떤 영어든 거의 완벽하게 이해.'
+};
+
+function showLevelInfo() {
+  const existing = document.getElementById('levelInfoPopup');
+  if (existing) { existing.remove(); return; }
+  const popup = document.createElement('div');
+  popup.id = 'levelInfoPopup';
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;';
+  popup.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:400px;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--accent);">수준별 설명</span>
+        <button onclick="document.getElementById('levelInfoPopup').remove()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      ${Object.entries(LEVEL_INFO).map(([level, desc]) => `
+        <div style="padding:10px 0;border-top:1px solid var(--border);">
+          <div style="font-weight:700;color:var(--accent);margin-bottom:4px;">${level}</div>
+          <div style="font-size:13px;color:var(--text2);line-height:1.6;">${desc}</div>
+        </div>`).join('')}
+    </div>`;
+  popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+  document.body.appendChild(popup);
+}
+
+function renderStats() {
+  const avg = avgScore();
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 15);
+  const recentCount = records.filter(r => r.log_date >= dStr(cutoff)).length;
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="stat-label">총 학습 횟수</div><div class="stat-value" style="color:var(--accent)">${records.length}<span style="font-size:14px;font-family:'Noto Sans KR'">회</span></div></div>
+    <div class="stat-card">
+      <div class="stat-label">평균 이해도 <span style="font-size:10px;color:var(--text2)">(최근 15일·${recentCount}개)</span></div>
+      <div class="stat-value" style="color:${avg>=65?'var(--good)':avg>=40?'#f59e0b':'var(--danger)'}">${avg !== null ? avg : '—'}<span style="font-size:14px;font-family:'Noto Sans KR'">${avg!==null?'%':''}</span></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">추정 수준 <button onclick="showLevelInfo()" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;padding:0;line-height:16px;">?</button></div>
+      <div class="stat-value" style="font-size:18px;padding-top:4px;font-family:'Noto Sans KR';font-weight:700">${getLevel(avg)}</div>
+    </div>`;
+}
+
+function renderTrend() {
+  // 날짜별 평균으로 그룹핑
+  const byDate = {};
+  records.forEach(r => {
+    if (!byDate[r.log_date]) byDate[r.log_date] = [];
+    byDate[r.log_date].push(r.score);
+  });
+  const sorted = Object.entries(byDate)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-14)
+    .map(([date, scores]) => ({ date, avg: Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) }));
+
+  const canvas = document.getElementById('trendCanvas');
+  const empty = document.getElementById('trendEmpty');
+  if (sorted.length < 2) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+  canvas.style.display = 'block'; empty.style.display = 'none';
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 700;
+  canvas.height = 160 * (window.devicePixelRatio || 1);
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  const RW = W / (window.devicePixelRatio || 1), RH = H / (window.devicePixelRatio || 1);
+  ctx.clearRect(0, 0, RW, RH);
+  const pad = { l: 36, r: 12, t: 12, b: 32 };
+  const scores = sorted.map(r => r.avg);
+  const minS = Math.max(0, Math.min(...scores) - 10), maxS = Math.min(100, Math.max(...scores) + 10);
+  const xStep = (RW - pad.l - pad.r) / (sorted.length - 1);
+  const yScale = (RH - pad.t - pad.b) / (maxS - minS);
+  ctx.strokeStyle = '#2a3348'; ctx.lineWidth = 1;
+  [0, 25, 50, 75, 100].filter(s => s >= minS && s <= maxS).forEach(s => {
+    const y = RH - pad.b - (s - minS) * yScale;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(RW - pad.r, y); ctx.stroke();
+    ctx.fillStyle = '#475569'; ctx.font = '9px Space Mono'; ctx.fillText(s, 2, y + 4);
+  });
+  const gr = ctx.createLinearGradient(0, pad.t, 0, RH - pad.b);
+  gr.addColorStop(0, 'rgba(129,140,248,.35)'); gr.addColorStop(1, 'rgba(129,140,248,0)');
+  ctx.beginPath();
+  sorted.forEach((r, i) => { const x = pad.l + i * xStep, y = RH - pad.b - (r.avg - minS) * yScale; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.lineTo(pad.l + (sorted.length - 1) * xStep, RH - pad.b); ctx.lineTo(pad.l, RH - pad.b);
+  ctx.closePath(); ctx.fillStyle = gr; ctx.fill();
+  ctx.beginPath(); ctx.strokeStyle = '#818cf8'; ctx.lineWidth = 2.5;
+  sorted.forEach((r, i) => { const x = pad.l + i * xStep, y = RH - pad.b - (r.avg - minS) * yScale; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.stroke();
+  sorted.forEach((r, i) => {
+    const x = pad.l + i * xStep, y = RH - pad.b - (r.avg - minS) * yScale;
+    const col = r.avg < 30 ? '#f87171' : r.avg < 55 ? '#f59e0b' : r.avg < 75 ? '#818cf8' : '#34d399';
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle = '#0a0f1e'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#64748b'; ctx.font = '9px Space Mono'; ctx.fillText(r.date.slice(5), x - 12, RH - pad.b + 14);
+  });
+}
+
+// ──────────────────────────────────────────
+//  AI 분석 (하루 1회 저장, 히스토리 누적)
+// ──────────────────────────────────────────
+async function runAIAnalysis() {
+  if (!records.length) return alert('먼저 학습 기록을 추가하세요.');
+  const today = dStr(new Date());
+  // 항상 새로 분석 (오늘 캐시 삭제 후 재분석)
+  await sb.from('eng_analysis_cache').delete().eq('cache_date', today);
+  analysisHistory = analysisHistory.filter(h => h.cache_date !== today);
+  renderAnalysisHistory();
+  document.getElementById('aiAnalysisResult').innerHTML = '';
+  await doAnalysis(today);
+}
+
+async function doAnalysis(today) {
+  const btn = document.getElementById('aiAnalysisBtn');
+  btn.innerHTML = `<span class="loading">분석중<span>.</span><span>.</span><span>.</span></span>`;
+  btn.disabled = true;
+  document.getElementById('aiAnalysisResult').innerHTML = '';
+  const avg = avgScore();
+
+  // 최근 15일 기록만 분석에 사용
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 15);
+  const recentRecords = records.filter(r => r.log_date >= dStr(cutoff));
+  const summary = recentRecords.slice(0, 20).map(r =>
+    `날짜:${r.log_date}, 소스:${r.source}, 유형:${r.source_type}, 이해도:${r.score}%, 메모:${r.memo || '없음'}`).join('\n');
+
+  // 날짜 기반 랜덤 시드 (매일 다른 추천)
+  const dateSeed = today.replace(/-/g, '');
+
+  const ALLOWED_EXTERNAL_DOMAINS = [
+    'learningenglish.voanews.com',
+    'edition.cnn.com/cnn10',
+    'ed.ted.com',
+    'elllo.org',
+    'bbc.co.uk/learningenglish',
+    'npr.org',
+    'englishcentral.com',
+    'breakingnewsenglish.com',
+  ];
+
+  const EXTERNAL_SITES = [
+    'VOA Learning English (learningenglish.voanews.com) - 미국 영어 전용',
+    'CNN 10 (edition.cnn.com/cnn10) - 10분 뉴스',
+    'TED-Ed (ed.ted.com/lessons) - 교육 강의',
+    'Elllo (elllo.org) - 다양한 억양 대화',
+    'BBC Learning English (bbc.co.uk/learningenglish) - 영국 영어',
+    'NPR News (npr.org/sections/news) - 미국 라디오',
+    'EnglishCentral (englishcentral.com) - 영상 학습',
+    'BreakingNewsEnglish (breakingnewsenglish.com) - 뉴스 기반',
+  ];
+
+  // 수준별 검증된 외부 사이트 URL 풀
+  const VERIFIED_EXTERNAL = {
+    A1: [
+      { title: 'Elllo A1 - Beginner Listening Lessons', url: 'https://elllo.org/levels/A1-English-Lessons/index.html', site: 'Elllo' },
+      { title: 'VOA - English in a Minute', url: 'https://learningenglish.voanews.com/z/3619', site: 'VOA' },
+      { title: 'VOA - How to Pronounce', url: 'https://learningenglish.voanews.com/z/6042', site: 'VOA' },
+      { title: 'VOA - Everyday Grammar', url: 'https://learningenglish.voanews.com/z/4456/episodes', site: 'VOA' },
+      { title: 'Breaking News English - Easy Level', url: 'https://breakingnewsenglish.com/easy-news-english.html', site: 'BreakingNewsEnglish' },
+    ],
+    A2: [
+      { title: 'Elllo A2 - High Beginner Listening', url: 'https://elllo.org/levels/A2-English-Lessons/index.html', site: 'Elllo' },
+      { title: 'VOA - English in a Minute', url: 'https://learningenglish.voanews.com/z/3619', site: 'VOA' },
+      { title: 'VOA - How to Pronounce', url: 'https://learningenglish.voanews.com/z/6042', site: 'VOA' },
+      { title: 'Breaking News English - Easy Level', url: 'https://breakingnewsenglish.com/easy-news-english.html', site: 'BreakingNewsEnglish' },
+      { title: 'TED-Ed: How languages evolve', url: 'https://ed.ted.com/lessons/how-languages-evolve-alex-gendler', site: 'TED-Ed' },
+    ],
+    B1: [
+      { title: 'Elllo B1 - Intermediate Listening', url: 'https://elllo.org/levels/B1-English-Lessons/index.html', site: 'Elllo' },
+      { title: 'VOA - Everyday Grammar TV', url: 'https://learningenglish.voanews.com/z/4716', site: 'VOA' },
+      { title: 'VOA Learning English Podcast', url: 'https://learningenglish.voanews.com/z/1689', site: 'VOA' },
+      { title: 'Breaking News English - Multi-Speed Listening', url: 'https://breakingnewsenglish.com/multi-speed-listening.html', site: 'BreakingNewsEnglish' },
+      { title: 'CNN 10 - Daily News Video', url: 'https://edition.cnn.com/cnn10.html', site: 'CNN10' },
+      { title: 'TED-Ed: What makes a language a language?', url: 'https://ed.ted.com/lessons/what-makes-a-language-a-language-martin-hilpert', site: 'TED-Ed' },
+      { title: 'TED-Ed: 4 things all great listeners know', url: 'https://ed.ted.com/lessons/4-things-all-great-listeners-know', site: 'TED-Ed' },
+      { title: 'NPR Morning Edition', url: 'https://www.npr.org/programs/morning-edition/', site: 'NPR' },
+    ],
+    B2: [
+      { title: 'Elllo B2 - Upper Intermediate Listening', url: 'https://elllo.org/levels/B2-English-Lessons/index.html', site: 'Elllo' },
+      { title: 'VOA60 - Watch & Learn (자막제공)', url: 'https://learningenglish.voanews.com/z/3613', site: 'VOA' },
+      { title: 'Breaking News English - Graded Stories', url: 'https://breakingnewsenglish.com/graded-news-stories.html', site: 'BreakingNewsEnglish' },
+      { title: 'CNN 10 - Daily News Video', url: 'https://edition.cnn.com/cnn10.html', site: 'CNN10' },
+      { title: 'TED-Ed: 4 reasons to learn a new language', url: 'https://ed.ted.com/lessons/i9eDOogu', site: 'TED-Ed' },
+      { title: 'TED-Ed: What makes a language a language?', url: 'https://ed.ted.com/lessons/what-makes-a-language-a-language-martin-hilpert', site: 'TED-Ed' },
+      { title: 'NPR All Things Considered', url: 'https://www.npr.org/programs/all-things-considered/', site: 'NPR' },
+      { title: 'NPR TED Radio Hour', url: 'https://www.npr.org/programs/ted-radio-hour/', site: 'NPR' },
+    ],
+    C1: [
+      { title: 'Elllo C1 - Advanced Listening', url: 'https://elllo.org/levels/C1-English-Lessons/index.html', site: 'Elllo' },
+      { title: 'VOA60 - Watch & Learn (자막제공)', url: 'https://learningenglish.voanews.com/z/3613', site: 'VOA' },
+      { title: 'Breaking News English - Mini Lessons', url: 'https://breakingnewsenglish.com/mini_lessons.html', site: 'BreakingNewsEnglish' },
+      { title: 'CNN 10 - Daily News Video', url: 'https://edition.cnn.com/cnn10.html', site: 'CNN10' },
+      { title: 'NPR TED Radio Hour', url: 'https://www.npr.org/programs/ted-radio-hour/', site: 'NPR' },
+      { title: 'NPR All Things Considered', url: 'https://www.npr.org/programs/all-things-considered/', site: 'NPR' },
+      { title: 'NPR Morning Edition', url: 'https://www.npr.org/programs/morning-edition/', site: 'NPR' },
+      { title: 'TED-Ed: How language shapes the way we think', url: 'https://ed.ted.com/lessons/how-language-shapes-the-way-we-think-lera-boroditsky', site: 'TED-Ed' },
+    ],
+  };
+
+  const prompt = `영어 리스닝 코치. 학습 기록 분석 후 JSON만 응답(마크다운 없이).
+
+기록(최근15일): ${summary || '없음'}
+총 ${recentRecords.length}개, 평균 ${avg}%
+
+지침: 콘텐츠 난이도 추정(BBC=B2,드라마=B2-C1,뉴스=B1-B2,강의=C1)하여 가중보정점수 산출. 강점/약점은 실제데이터 기반 구체적으로.
+'AI스크립트[난이도,속도x]' 형식 소스는 해당 난이도와 속도를 그대로 사용해서 분석할 것.
+
+추천: youtube타입 2개(searchQuery만,url=""), external타입 2개(type만,url/title은코드처리)
+
+{"level":"수준설명(3문장,구체적)","weighted_avg":숫자,"trend":"상승|유지|하락","strengths":["강점1","강점2"],"weaknesses":["약점1","약점2"],"content_analysis":[{"source":"소스","difficulty":"초급|중급|고급|정보없음","reason":"근거"}],"recommendations":[{"type":"youtube","title":"주제","searchQuery":"english search query","url":"","reason":"이유","difficulty":"초급|중급|고급"},{"type":"youtube","title":"주제","searchQuery":"english search query subtitles","url":"","reason":"이유","difficulty":"초급|중급|고급"},{"type":"external","title":"","url":"","reason":"이유","difficulty":"초급|중급|고급"},{"type":"external","title":"","url":"","reason":"이유","difficulty":"초급|중급|고급"}],"nextGoal":"이번주목표","script_hints":{"focus":"취약점","speed":"slow|normal|fast","accent":"us|uk|neutral","vocab_level":"쉬움|보통|어려움"}}`;
+  try {
+    const txt = await callGemini(prompt, 0, 'gemini-2.5-flash-lite');
+    const result = JSON.parse(txt);
+    const levelKey = getLevelKey(avg);
+    // 기존 추천 URL 수집 (중복 제외용)
+    const pastUrls = analysisHistory
+      .flatMap(h => h.result?.recommendations || [])
+      .filter(r => r.type === 'external' && r.url)
+      .map(r => r.url)
+      .filter((u, i, a) => a.indexOf(u) === i)
+      .slice(0, 20);
+
+    // 검증된 외부 URL로 교체 (AI가 만들어낸 URL 대신)
+    if (result.recommendations) {
+      const levelPool = VERIFIED_EXTERNAL[levelKey] || VERIFIED_EXTERNAL.B1;
+      const usedExternalUrls = new Set(pastUrls);
+      const availableExternal = levelPool.filter(e => !usedExternalUrls.has(e.url));
+      const externalPool = availableExternal.length >= 2 ? availableExternal : levelPool;
+      const shuffled = [...externalPool].sort(() => Math.random() - 0.5);
+      let extCount = 0;
+      result.recommendations.forEach(rec => {
+        if (rec.type === 'external' && shuffled[extCount]) {
+          rec.url = shuffled[extCount].url;
+          rec.title = shuffled[extCount].title;
+          rec.channel = shuffled[extCount].site;
+          extCount++;
+        }
+      });
+    }
+
+    // YouTube 추천 항목에 실제 검색 수행
+    if (result.recommendations) {
+      const ytRecs = result.recommendations.filter(r => r.type === 'youtube');
+      // 난이도 순서 파악 (고급 > 중급 > 초급)
+      const diffOrder = { '고급': 3, '중급': 2, '초급': 1 };
+      const harderIdx = ytRecs.length === 2
+        ? (diffOrder[ytRecs[0].difficulty] >= diffOrder[ytRecs[1].difficulty] ? 0 : 1)
+        : 0;
+
+      let ytCount = 0;
+      const usedVideoIds = new Set(); // 중복 방지
+      for (let rec of result.recommendations) {
+        if (rec.type === 'youtube' && rec.searchQuery) {
+          const isHarder = ytCount === harderIdx;
+          let found;
+          if (isHarder) {
+            const harderKey = { A1:'A2', A2:'B1', B1:'B2', B2:'C1', C1:'C1' }[levelKey] || 'B1';
+            found = await searchYouTubeWithCaption(rec.searchQuery, harderKey);
+          } else {
+            found = await searchYouTubeClip(rec.searchQuery, result.level || avg + '점', false);
+          }
+          // 중복 영상이면 다른 키워드로 재검색
+          if (found && !found.error && usedVideoIds.has(found.videoId)) {
+            found = await searchYouTubeClip(rec.searchQuery + ' english lesson', result.level || avg + '점', false);
+          }
+          if (found && !found.error) {
+            usedVideoIds.add(found.videoId);
+            rec.url = found.url;
+            rec.title = found.title;
+            rec.channel = found.channel;
+            rec.videoId = found.videoId;
+          } else {
+            rec._ytError = found?.error || 'YouTube 검색 실패';
+          }
+          ytCount++;
+        }
+      }
+    }
+    // 오늘 기존 캐시 삭제 후 새로 저장
+    await sb.from('eng_analysis_cache').delete().eq('cache_date', today);
+    const { data: saved } = await sb.from('eng_analysis_cache').insert(
+      { cache_date: today, record_count: records.length, result }
+    ).select().single();
+    // 히스토리 업데이트
+    if (saved) {
+      analysisHistory = [saved, ...analysisHistory.filter(h => h.cache_date !== today)];
+      renderAnalysisHistory();
+    }
+    renderAIAnalysis(result, avg, today);
+    // 자막 여부 비동기 확인
+    checkCaptions(result.recommendations);
+  } catch (e) {
+    document.getElementById('aiAnalysisResult').innerHTML = `<p style="color:var(--danger);text-align:center">분석 오류: ${e.message}</p>`;
+  }
+  btn.innerHTML = '🤖 오늘 분석';
+  btn.disabled = false;
+}
+
+// YouTube Data API로 실제 클립 검색
+async function searchYouTubeClip(query, level, requireCaption = false) {
+  if (!youtubeApiKey) return { error: 'YouTube API 키가 없어요. Supabase app_config에 youtube_api_key 확인' };
+  const levelQuery = level.includes('초') ? 'beginner' : level.includes('중') ? 'intermediate' : 'advanced';
+  const q = encodeURIComponent(`${query} english listening ${levelQuery}`);
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&type=video&videoDuration=short&maxResults=10&relevanceLanguage=en&key=${youtubeApiKey}`
+    );
+    const data = await res.json();
+    if (data.error) return { error: `YouTube API 오류: ${data.error.message}` };
+    const items = (data.items || []).filter(it => {
+      const title = it.snippet.title;
+      const channel = it.snippet.channelTitle;
+      return !title.match(/[가-힣ㄱ-ㅎㅏ-ㅣ\u0600-\u06FF\u0750-\u077F]/)
+          && !channel.match(/[가-힣ㄱ-ㅎㅏ-ㅣ\u0600-\u06FF]/);
+    });
+    if (!items.length) return { error: '검색 결과 없음' };
+    const item = items[0];
+    return {
+      title: item.snippet.title,
+      url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+      channel: item.snippet.channelTitle,
+      videoId: item.id.videoId,
+      hasCaption: false
+    };
+  } catch(e) { return { error: `YouTube 검색 오류: ${e.message}` }; }
+}
+
+// 수준별 자막 보장 채널 (YouTube 채널 ID)
+const CAPTION_CHANNELS = {
+  A1: [
+    { id: 'UCKyTokYo0nK2OA-az-sDijA', name: 'VOA Learning English' },    // 초급 뉴스, 자막 100%
+    { id: 'UCeTVoczn9NXMA6TtACOFe3g', name: 'EnglishClass101' },          // 초급 강의, 자막 있음
+  ],
+  A2: [
+    { id: 'UCKyTokYo0nK2OA-az-sDijA', name: 'VOA Learning English' },
+    { id: 'UCeTVoczn9NXMA6TtACOFe3g', name: 'EnglishClass101' },
+    { id: 'UCvn_XCl_mgV4R4UhxaHOl6g', name: "Rachel's English" },         // 발음, 자막 100%
+  ],
+  B1: [
+    { id: 'UCHaHD477h-FeBbVh9Sh7syA', name: 'BBC Learning English' },     // B1-B2, 자막 100%
+    { id: 'UCKyTokYo0nK2OA-az-sDijA', name: 'VOA Learning English' },
+    { id: 'UCvn_XCl_mgV4R4UhxaHOl6g', name: "Rachel's English" },
+  ],
+  B2: [
+    { id: 'UCHaHD477h-FeBbVh9Sh7syA', name: 'BBC Learning English' },
+    { id: 'UCAuUUnT6oDeKwE6v1NGQxug', name: 'TEDx Talks' },               // B2-C1, 자막 100%
+    { id: 'UCsooa4yRKGN_zEE8iknghZA', name: 'TED-Ed' },                   // B2-C1, 자막 100%
+  ],
+  C1: [
+    { id: 'UCAuUUnT6oDeKwE6v1NGQxug', name: 'TEDx Talks' },
+    { id: 'UCsooa4yRKGN_zEE8iknghZA', name: 'TED-Ed' },
+    { id: 'UCHaHD477h-FeBbVh9Sh7syA', name: 'BBC Learning English' },
+  ],
+};
+
+function getLevelKey(avg) {
+  if (avg === null) return 'B1';
+  if (avg < 20) return 'A1';
+  if (avg < 35) return 'A2';
+  if (avg < 50) return 'B1';
+  if (avg < 65) return 'B2';
+  return 'C1';
+}
+
+async function searchYouTubeWithCaption(query, levelKey) {
+  if (!youtubeApiKey) return { error: 'YouTube API 키 없음' };
+  const channels = CAPTION_CHANNELS[levelKey] || CAPTION_CHANNELS.B1;
+  // 채널 중 랜덤 선택 (매번 다른 채널)
+  const channel = channels[Math.floor(Math.random() * channels.length)];
+  const q = encodeURIComponent(query);
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&type=video&channelId=${channel.id}&videoDuration=short&maxResults=5&key=${youtubeApiKey}`
+    );
+    const data = await res.json();
+    if (data.error) return { error: `YouTube API 오류: ${data.error.message}` };
+    const item = data.items?.[0];
+    if (!item) {
+      // 해당 채널에 결과 없으면 일반 검색으로 fallback
+      return searchYouTubeClip(query + ' english learning subtitles', levelKey, true);
+    }
+    const videoId = item.id.videoId;
+
+    // 자막 가져와서 난이도 분석
+    let transcriptSnippet = '';
+    try {
+      const tRes = await fetch(`https://api.superplugin.ai/yt?v=${videoId}&lang=en`);
+      if (tRes.ok) {
+        const tData = await tRes.json();
+        transcriptSnippet = (tData.transcript || tData.text || '').slice(0, 500);
+      }
+    } catch(e) {}
+
+    return {
+      title: item.snippet.title,
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      channel: channel.name,
+      videoId,
+      hasCaption: true,
+      transcriptSnippet
+    };
+  } catch(e) { return { error: `YouTube 검색 오류: ${e.message}` }; }
+}
+
+function getRecActionsHtml(url, title, idx) {
+  if (!url || url.includes('...')) return '';
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  const videoId = ytMatch ? ytMatch[1] : null;
+
+  return `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center;">
+      ${videoId ? `<button onclick="toggleClipPlayer('clipPlayer${idx}')"
+        style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:var(--accent);padding:5px 10px;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        ▶ 앱에서 듣기</button>` : ''}
+      <a href="${url}" target="_blank"
+        style="display:inline-flex;align-items:center;background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:8px;font-size:12px;text-decoration:none;">
+        🔗 링크 열기</a>
+      <button onclick="openClipFeedback('${url.replace(/'/g,"\\'")}', '${title.replace(/'/g,"\\'")}${videoId ? '' : ''}')"
+        style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:var(--good);padding:5px 10px;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;">
+        📋 피드백</button>
+      ${videoId ? `<span id="captionBadge${idx}" style="font-size:11px;color:var(--text2);">자막 확인중...</span>` : ''}
+    </div>
+    ${videoId ? `<div id="clipPlayer${idx}" style="display:none;margin-top:8px;border-radius:8px;overflow:hidden;">
+      <iframe width="100%" height="160" src="https://www.youtube.com/embed/${videoId}?rel=0" frameborder="0" allowfullscreen style="display:block;border-radius:8px;"></iframe>
+    </div>` : ''}`;
+}
+
+function toggleClipPlayer(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// 추천 영상 자막 여부 확인
+async function checkCaptions(recommendations) {
+  if (!youtubeApiKey || !recommendations) return;
+  const ytRecs = recommendations.filter(r => r.type === 'youtube' && r.videoId);
+  if (!ytRecs.length) return;
+  const ids = ytRecs.map(r => r.videoId).join(',');
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids}&key=${youtubeApiKey}`
+    );
+    const data = await res.json();
+    if (data.error || !data.items) return;
+    data.items.forEach((item, i) => {
+      const hasCaption = item.contentDetails?.caption === 'true';
+      const badge = document.getElementById('captionBadge' + i);
+      if (badge) {
+        badge.textContent = hasCaption ? '📄 자막 있음' : '자막 없음';
+        badge.style.color = hasCaption ? 'var(--good)' : 'var(--text2)';
+      }
+    });
+  } catch(e) {
+    // 확인 실패 시 배지 제거
+    ytRecs.forEach((_, i) => {
+      const badge = document.getElementById('captionBadge' + i);
+      if (badge) badge.textContent = '';
+    });
+  }
+}
+
+async function toggleClipScript(boxId, title, videoId) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const idx = boxId.replace('clipScript', '');
+  const contentEl = document.getElementById('clipScriptContent' + idx);
+  if (contentEl.textContent.trim() && !contentEl.textContent.includes('생성하고')) return;
+
+  contentEl.textContent = '⏳ 자막을 가져오고 있어요...';
+  const avg = avgScore();
+  const level = avg !== null ? getLevel(avg) : 'B1 초중급';
+
+  // YouTube 자막 가져오기
+  let transcript = '';
+  try {
+    const res = await fetch(`https://api.superplugin.ai/yt?v=${videoId}&lang=en`);
+    if (res.ok) {
+      const data = await res.json();
+      transcript = (data.transcript || data.text || '').slice(0, 3000);
+    }
+  } catch(e) { console.warn('자막 가져오기 실패'); }
+
+  if (!transcript) {
+    contentEl.textContent = '이 영상은 자막이 없어요.\n자막이 있는 영상에서만 스크립트를 제공할 수 있어요.';
+    return;
+  }
+
+  contentEl.textContent = '⏳ 자막 기반 스크립트 생성 중...';
+  const prompt = `아래는 YouTube 영상의 실제 자막이야. 이 자막을 기반으로 영어 리스닝 학습자(수준: ${level})를 위한 스크립트와 주요 표현을 JSON으로만 반환해줘(마크다운 없이):
+
+자막:
+${transcript}
+
+{"script":"자막 내용을 A: B: 대화 형식으로 정리한 스크립트 (너무 길면 핵심 부분만)","vocab":[{"word":"단어/표현","meaning":"한국어 뜻","example":"예문"}]}`;
+
+  try {
+    const txt = await callGemini(prompt, 0, 'gemini-2.5-flash-lite');
+    const data = JSON.parse(txt);
+    contentEl.textContent = data.script || txt;
+    if (data.vocab?.length) {
+      const vocabBox = document.getElementById('clipVocabBox' + idx);
+      const vocabContent = document.getElementById('clipVocabContent' + idx);
+      if (vocabBox && vocabContent) {
+        vocabContent.innerHTML = data.vocab.map((v, i) => `
+          <div style="${i ? 'border-top:1px solid #44403c;padding-top:8px;margin-top:8px;' : ''}">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <strong style="color:#fbbf24;font-size:13px;">${v.word}</strong>
+              <span style="font-size:12px;color:var(--text2);">${v.meaning}</span>
+            </div>
+            <p style="font-size:11px;color:#78716c;margin:3px 0 0;font-style:italic;">${v.example}</p>
+          </div>`).join('');
+        vocabBox.style.display = 'block';
+      }
+    }
+  } catch(e) {
+    contentEl.textContent = '스크립트 생성 오류: ' + e.message;
+  }
+}
+
+function renderAIAnalysis(r, avg, date) {
+  const trendColor = r.trend === '상승' ? 'var(--good)' : r.trend === '하락' ? 'var(--danger)' : '#f59e0b';
+  const trendIcon = r.trend === '상승' ? '📈' : r.trend === '하락' ? '📉' : '➡️';
+  const diffColor = d => d==='고급'?'var(--danger)':d==='중급'?'#f59e0b':'var(--good)';
+  document.getElementById('aiAnalysisResult').innerHTML = `
+    ${date ? `<div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-family:'Space Mono',monospace;">📅 ${date} 분석</div>` : ''}
+    <div style="background:var(--surface);border:1px solid #312e81;border-radius:14px;padding:18px;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--accent);font-weight:700;margin-bottom:8px;">📊 현재 수준</div>
+      <p style="font-size:14px;line-height:1.7;margin-bottom:10px;">${r.level}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:12px;padding:3px 12px;border-radius:99px;background:rgba(129,140,248,.1);color:${trendColor};border:1px solid ${trendColor}33;">${trendIcon} 추세: ${r.trend}</span>
+        ${r.weighted_avg ? `<span style="font-size:12px;padding:3px 12px;border-radius:99px;background:rgba(52,211,153,.1);color:var(--good);border:1px solid rgba(52,211,153,.3);">⚖️ 난이도 보정 점수: ${r.weighted_avg}점</span>` : ''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div style="background:#052e16;border:1px solid #14532d;border-radius:14px;padding:14px;">
+        <div style="font-size:12px;color:var(--good);font-weight:700;margin-bottom:8px;">✅ 강점</div>
+        ${r.strengths?.map(s => `<p style="font-size:13px;color:#86efac;margin:4px 0;">• ${s}</p>`).join('') || ''}
+      </div>
+      <div style="background:#450a0a;border:1px solid #7f1d1d;border-radius:14px;padding:14px;">
+        <div style="font-size:12px;color:var(--danger);font-weight:700;margin-bottom:8px;">⚠️ 약점</div>
+        ${r.weaknesses?.map(w => `<p style="font-size:13px;color:#fca5a5;margin:4px 0;">• ${w}</p>`).join('') || ''}
+      </div>
+    </div>
+    ${r.content_analysis?.length ? `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--accent);font-weight:700;margin-bottom:10px;">🔍 콘텐츠 난이도 분석</div>
+      ${r.content_analysis.map(c => `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;color:var(--text);word-break:break-all;">${c.source}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px;">${c.reason}</div>
+          </div>
+          <span style="font-size:11px;padding:2px 8px;border-radius:99px;background:var(--surface2);color:${diffColor(c.difficulty)};margin-left:8px;white-space:nowrap;">${c.difficulty}</span>
+        </div>`).join('')}
+    </div>` : ''}
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px;">
+      <div style="font-size:12px;color:var(--accent);font-weight:700;margin-bottom:12px;">🎯 맞춤 콘텐츠 추천</div>
+      ${r.recommendations?.map((rec, i) => {
+        const ytFromUrl = rec.url && rec.url.match(/youtube\.com|youtu\.be/);
+        const isYt = rec.type === 'youtube' || !!ytFromUrl;
+        return `
+        <div style="${i ? 'border-top:1px solid var(--border);padding-top:12px;margin-top:12px;' : ''}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:14px;font-weight:700;">${rec.title}</span>
+            <div style="display:flex;gap:4px;">
+              ${isYt ? `<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);">▶ YouTube</span>` :
+                `<span style="font-size:10px;padding:2px 7px;border-radius:99px;background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3);">🌐 외부</span>`}
+              <span style="font-size:10px;padding:2px 7px;border-radius:99px;background:var(--surface2);color:var(--text2);">${rec.difficulty}</span>
+            </div>
+          </div>
+          ${rec.channel ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;">📺 ${rec.channel}</div>` : ''}
+          ${rec._ytError ? `<div style="font-size:11px;color:var(--danger);margin-top:4px;">⚠️ ${rec._ytError}</div>` : ''}
+          ${rec._urlBlocked ? `<div style="font-size:11px;color:var(--danger);margin-top:4px;">⚠️ 허용되지 않은 사이트 URL (영어 사이트만 허용)</div>` : ''}
+          <p style="font-size:12px;color:var(--text2);margin:4px 0 4px;">${rec.reason}</p>
+          ${getRecActionsHtml(rec.url, rec.title, i)}
+        </div>`;
+      }).join('') || ''}
+    </div>
+    <div style="background:#0c1445;border:1px solid #312e81;border-radius:14px;padding:16px;">
+      <div style="font-size:12px;color:var(--accent);font-weight:700;margin-bottom:6px;">🚀 다음 목표</div>
+      <p style="font-size:13px;color:#c7d2fe;line-height:1.7;">${r.nextGoal}</p>
+    </div>`;
+}
+
+function renderAnalysisHistory() {
+  const el = document.getElementById('analysisHistoryList');
+  if (!el || !analysisHistory.length) return;
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:8px;">📅 분석 히스토리</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      ${analysisHistory.map(h => `
+        <button onclick="showAnalysisHistory('${h.cache_date}')"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);padding:5px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Space Mono',monospace;transition:all .2s;"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+          ${h.cache_date}
+        </button>`).join('')}
+    </div>`;
+}
+
+function showAnalysisHistory(date) {
+  const h = analysisHistory.find(x => x.cache_date === date);
+  if (!h) return;
+  renderAIAnalysis(h.result, avgScore(), date);
+  checkCaptions(h.result?.recommendations);
+  document.getElementById('aiAnalysisResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ──────────────────────────────────────────
+//  AI 스크립트 (날짜+주제+길이 캐싱)
+// ──────────────────────────────────────────
+function buildTopics() {
+  document.getElementById('topicWrap').innerHTML = TOPICS.map(t =>
+    `<button class="topic-btn${t === selTopic ? ' active' : ''}" onclick="pickTopic(this,'${t}')">${t}</button>`
+  ).join('');
+}
+function pickTopic(el, t) {
+  selTopic = t;
+  document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function generateScript(model = 'gemini-2.5-flash') {
+  const is25 = model === 'gemini-2.5-flash';
+  const btn = document.getElementById('genScriptBtn15');
+  
+  const today = dStr(new Date());
+  const dur = document.getElementById('durSelect').value;
+  const avg = avgScore();
+  const autoLevel = avg !== null ? getLevel(avg) : 'B1 초중급';
+  const levelInput = document.getElementById('levelInput').value.trim() || autoLevel;
+
+  btn.innerHTML = `<span class="loading">작성중<span>.</span><span>.</span><span>.</span></span>`;
+  btn.disabled = true;
+  
+  document.getElementById('scriptCacheNote').style.display = 'none';
+
+  const lengthGuide = dur === 'short' ? '5~8문장' : dur === 'medium' ? '12~16문장' : '20~25문장';
+
+  // 최근 AI 분석 결과에서 취약점 힌트 가져오기
+  let hints = '';
+  try {
+    const { data: cache } = await sb.from('eng_analysis_cache').select('result').order('cache_date', {ascending:false}).limit(1).single();
+    if (cache?.result?.script_hints) {
+      const h = cache.result.script_hints;
+      hints = `\n학습자 취약점 분석:\n- 집중 개선 영역: ${h.focus}\n- 권장 속도: ${h.speed}\n- 권장 발음: ${h.accent}\n- 어휘 수준: ${h.vocab_level}`;
+    }
+    if (cache?.result?.weaknesses) {
+      hints += `\n약점: ${cache.result.weaknesses.join(', ')}`;
+    }
+  } catch(e) { /* 분석 없으면 기본값 */ }
+
+  const accentGuide = selAccent === 'uk' ? '영국식 영어(British English)' : selAccent === 'in' ? '인도식 영어(Indian English)' : '미국식 영어(American English)';
+  const prompt = `영어 리스닝 스크립트 생성 전문가. 한국인 학습자를 위한 맞춤 영어 스크립트를 만드세요.
+주제:${selTopic}, 난이도:${levelInput}, 길이:${lengthGuide}, 발음:${accentGuide}${hints}
+
+[필수 형식] 반드시 두 화자의 대화로 작성하세요. 각 줄은 반드시 "A: " 또는 "B: "로 시작해야 합니다.
+예시:
+A: Hey, how was your weekend?
+B: It was great! I went hiking.
+A: Oh nice, where did you go?
+
+취약점이 있다면 해당 영역을 자연스럽게 연습할 수 있도록 스크립트에 반영하세요.
+JSON만 응답(마크다운 없이):
+{"title":"제목","level":"난이도","topic":"주제","accent":"${accentGuide}","focus":"이 스크립트가 집중한 취약점","script":"A: 첫번째 대사\\nB: 두번째 대사\\nA: ...형식으로 전체 대화","korean":"한국어 번역","vocab":[{"word":"단어/표현","meaning":"한국어 뜻","example":"예문"}],"tips":"학습 팁(한국어)"}`;
+
+  try {
+    const txt = await callGemini(prompt, 0, model);
+    curScript = JSON.parse(txt);
+    const { data: saved } = await sb.from('eng_scripts').insert({
+      script_date: today, topic: selTopic, duration: dur,
+      level_label: levelInput, result: curScript
+    }).select().single();
+    if (saved) savedScripts = [saved, ...savedScripts];
+    renderScriptList();
+    loadScriptResult(curScript);
+  } catch (e) {
+    if (e.message.toLowerCase().includes('quota') || e.message.toLowerCase().includes('retry')) {
+      document.getElementById('scriptCacheNote').style.display = 'flex';
+      document.getElementById('scriptCacheNote').innerHTML = `⚠️ ${is25 ? '2.5' : '1.5'} 한도 초과 — 잠시 후 다시 눌러주세요`;
+    } else {
+      alert('스크립트 생성 오류: ' + e.message);
+    }
+  }
+  btn.innerHTML = '✨ AI 스크립트 생성';
+  btn.disabled = false;
+  
+}
+
+function loadScriptResult(s) {
+  curScript = s;
+  curSegments = [];
+  curSegIdx = 0;
+  stopRequested = true;
+  runId++;
+  if (curAudio) { try { curAudio.pause(); } catch(e){} curAudio = null; }
+  isSpeaking = false;
+  showKorean = false;
+  document.getElementById('koreanBox').style.display = 'none';
+  document.getElementById('koreanArrow').style.transform = '';
+  applyScript(s);
+  document.getElementById('scriptResult').style.display = 'block';
+  updateTTSButtons();
+}
+
+function openScriptRecordModal() {
+  if (!curScript) return;
+  const speedLabel = document.getElementById('speedLabel')?.textContent || '0.85x';
+  document.getElementById('scriptRecordInfo').innerHTML =
+    `📄 ${curScript.title || ''} · ${curScript.level || ''} · ${curScript.topic || ''}<br><span style="font-size:11px;color:var(--text2);">재생속도: ${speedLabel}</span>`;
+  document.getElementById('scriptScoreNoSubRange').value = 50;
+  document.getElementById('scriptScoreNoSub').textContent = '50%';
+  document.getElementById('scriptScoreWithSubRange').value = 70;
+  document.getElementById('scriptScoreWithSub').textContent = '70%';
+  document.getElementById('scriptRecordMemo').value = '';
+  document.getElementById('scriptRecordModal').classList.add('open');
+}
+
+async function saveScriptRecord() {
+  if (!curScript) return;
+  const scoreNoSub = Number(document.getElementById('scriptScoreNoSubRange').value);
+  const scoreWithSub = Number(document.getElementById('scriptScoreWithSubRange').value);
+  const memo = document.getElementById('scriptRecordMemo').value.trim();
+  const speed = parseFloat(document.getElementById('speedRange')?.value || 0.85);
+  // 속도 반영 보정 점수
+  const adjustedScore = Math.min(100, Math.round(scoreNoSub * (speed / 0.85)));
+  // 난이도와 속도를 source에 포함 → 분석 시 인식 가능
+  const level = curScript.level || curScript.topic || '';
+  const source = `AI스크립트[${level},${speed}x]: ${curScript.title || curScript.topic || ''}`;
+  // 메모에도 자동 추가
+  const autoMemo = `난이도:${level} 재생속도:${speed}x${memo ? ' / ' + memo : ''}`;
+  try {
+    const { error } = await sb.from('eng_records').insert({
+      log_date: dStr(new Date()),
+      source_type: 'url',
+      source,
+      score: adjustedScore,
+      score_no_sub: scoreNoSub,
+      score_with_sub: scoreWithSub,
+      memo: autoMemo
+    });
+    if (error) throw error;
+    document.getElementById('scriptRecordModal').classList.remove('open');
+    await loadAll();
+    alert('기록이 저장됐어요! 📋');
+  } catch(e) {
+    alert('저장 실패: ' + e.message);
+  }
+}
+
+let clipFeedbackUrl = '';
+let clipFeedbackTitle = '';
+
+function openClipFeedback(url, title) {
+  clipFeedbackUrl = url;
+  clipFeedbackTitle = title;
+  document.getElementById('clipFeedbackInfo').textContent = title;
+  document.getElementById('clipScoreNoSubRange').value = 50;
+  document.getElementById('clipScoreNoSub').textContent = '50%';
+  document.getElementById('clipScoreWithSubRange').value = 70;
+  document.getElementById('clipScoreWithSub').textContent = '70%';
+  document.getElementById('clipFeedbackMemo').value = '';
+  document.getElementById('clipFeedbackModal').classList.add('open');
+}
+
+async function saveClipFeedback() {
+  const scoreNoSub = Number(document.getElementById('clipScoreNoSubRange').value);
+  const scoreWithSub = Number(document.getElementById('clipScoreWithSubRange').value);
+  const memo = document.getElementById('clipFeedbackMemo').value.trim();
+  try {
+    const { error } = await sb.from('eng_records').insert({
+      log_date: dStr(new Date()),
+      source_type: 'url',
+      source: clipFeedbackUrl,
+      score: scoreNoSub,
+      score_no_sub: scoreNoSub,
+      score_with_sub: scoreWithSub,
+      memo: memo || null
+    });
+    if (error) throw error;
+    document.getElementById('clipFeedbackModal').classList.remove('open');
+    await loadAll();
+    alert('피드백이 저장됐어요! 📋');
+  } catch(e) {
+    alert('저장 실패: ' + e.message);
+  }
+}
+
+// 저장된 스크립트 목록 (날짜별)
+function renderScriptList() {
+  const el = document.getElementById('savedScriptList');
+  if (!savedScripts.length) { el.innerHTML = ''; return; }
+  const groups = {};
+  savedScripts.forEach(s => {
+    if (!groups[s.script_date]) groups[s.script_date] = [];
+    groups[s.script_date].push(s);
+  });
+  el.innerHTML = Object.entries(groups).sort((a,b) => b[0].localeCompare(a[0])).map(([date, list]) => `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--text2);font-family:'Space Mono',monospace;margin-bottom:6px;">${date} · ${list.length}개</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${list.map((s, i) => `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick='loadSavedScript(${JSON.stringify(s.id)})' style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .2s;text-align:left;"
+              onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+              ${i+1}. ${s.result.topic} · ${s.duration === 'short' ? '짧게' : s.duration === 'medium' ? '보통' : '길게'} · <span style="color:var(--text2);font-size:11px;">${s.result.level || ''}</span>
+            </button>
+            <button onclick='deleteScript(${JSON.stringify(s.id)})' class="btn-d" style="padding:7px 10px;font-size:12px;flex-shrink:0;">삭제</button>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+async function deleteScript(id) {
+  if (!confirm('이 스크립트를 삭제할까요?')) return;
+  try {
+    await sb.from('eng_scripts').delete().eq('id', id);
+    savedScripts = savedScripts.filter(s => s.id !== id);
+    renderScriptList();
+  } catch(e) {
+    alert('삭제 실패: ' + e.message);
+  }
+}
+
+function loadSavedScript(id) {
+  const s = savedScripts.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('scriptCacheNote').style.display = 'none';
+  loadScriptResult(s.result);
+  document.getElementById('scriptResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+function applyScript(s) {
+  document.getElementById('scriptTitle').textContent = s.title || '';
+  document.getElementById('scriptMeta').textContent = `${s.level} · ${s.topic}${s.accent ? ' · '+s.accent : ''}${s.focus ? ' · 📍'+s.focus : ''}`;
+  const txt = s.script || '';
+  // 단어 클릭 번역을 위해 각 단어를 span으로 감싸기
+  const clickableText = txt.replace(/([A-Za-z''-]+)/g, '<span class="clickable-word" onclick="translateWord(\'$1\')">$1</span>');
+  document.getElementById('scriptTextToggle').innerHTML = clickableText;
+  // 난이도별 속도 자동 설정
+  autoSetSpeed(s.level);
+  document.getElementById('koreanText').textContent = s.korean || '';
+  document.getElementById('vocabList').innerHTML = (s.vocab || []).map((v, i) => `
+    <div class="vocab-item" ${i === 0 ? 'style="border-top:none"' : ''}>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong style="color:#fbbf24;font-size:14px;">${v.word}</strong>
+        <span style="font-size:13px;color:var(--text2);">${v.meaning}</span>
+      </div>
+      <p style="font-size:12px;color:var(--text2);margin-top:4px;font-style:italic;">${v.example}</p>
+    </div>`).join('');
+  document.getElementById('scriptTips').textContent = s.tips || '';
+  // 게이지 초기화
+  updateGauge(0, 0, '');
+}
+
+let showEngScript = false;
+function toggleEngScript() {
+  showEngScript = !showEngScript;
+  document.getElementById('engScriptBox').style.display = showEngScript ? 'block' : 'none';
+  document.getElementById('engScriptArrow').style.transform = showEngScript ? 'rotate(180deg)' : '';
+}
+
+// 게이지 터치로 위치 이동
+function seekGauge(e) {
+  if (!curSegments.length) return;
+  const track = document.getElementById('gaugeTrack');
+  const rect = track.getBoundingClientRect();
+  const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const newIdx = Math.floor(ratio * curSegments.length);
+  // 재생 중이면 정지 후 이동
+  stopRequested = true;
+  if (curAudio) { curAudio.pause(); curAudio = null; }
+  isSpeaking = false;
+  curSegIdx = newIdx;
+  updateGauge(newIdx, curSegments.length, curSegments[newIdx]?.speaker || '');
+  updateTTSButtons();
+}
+
+function setMode(mode) {
+  curMode = mode;
+  stopRequested = true;
+  if (curAudio) { curAudio.pause(); curAudio = null; }
+  isSpeaking = false; updateTTSButtons();
+  document.getElementById('modeListenBtn').classList.toggle('active', mode === 'listen');
+  document.getElementById('modeReadBtn').classList.toggle('active', mode === 'read');
+  document.getElementById('listenMode').style.display = mode === 'listen' ? 'block' : 'none';
+  document.getElementById('readMode').style.display = mode === 'read' ? 'block' : 'none';
+}
+
+function toggleKorean() {
+  showKorean = !showKorean;
+  document.getElementById('koreanBox').style.display = showKorean ? 'block' : 'none';
+  document.getElementById('koreanArrow').style.transform = showKorean ? 'rotate(180deg)' : '';
+}
+
+function setTTSEngine(engine) {
+  ttsEngine = engine;
+  ['Google','Puter'].forEach(e => {
+    const btn = document.getElementById('ttsEng'+e);
+    if (btn) btn.classList.toggle('active', engine === e.toLowerCase());
+  });
+  const note = document.getElementById('ttsKeyNote');
+  if (engine === 'google' && !ttsKeys.google) {
+    note.style.display = 'block';
+  } else {
+    note.style.display = 'none';
+  }
+  // Puter는 인도 발음 미지원 → 버튼 숨기기
+  const inBtn = document.getElementById('accentIN');
+  if (inBtn) {
+    inBtn.style.display = engine === 'puter' ? 'none' : '';
+    // 인도 선택 상태에서 Puter로 바꾸면 미국으로 초기화
+    if (engine === 'puter' && selAccent === 'in') setAccent('us');
+  }
+}
+
+function setAccent(accent) {
+  selAccent = accent;
+  ['US','UK','IN'].forEach(a => {
+    ['accentUS','accentUK','accentIN'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', id.toLowerCase().includes(accent));
+    });
+  });
+}
+
+// 난이도별 자동 속도 설정
+function autoSetSpeed(levelText) {
+  const l = (levelText || '').toLowerCase();
+  let speed = 0.85;
+  if (l.includes('a1') || l.includes('완전초보')) speed = 0.65;
+  else if (l.includes('a2') || l.includes('초급')) speed = 0.75;
+  else if (l.includes('b1') || l.includes('초중급')) speed = 0.85;
+  else if (l.includes('b2') || l.includes('중급')) speed = 1.0;
+  else if (l.includes('c1') || l.includes('중고급')) speed = 1.1;
+  else if (l.includes('c2') || l.includes('고급')) speed = 1.2;
+  const r = document.getElementById('speedRange');
+  const r2 = document.getElementById('speedRange2');
+  const lbl = document.getElementById('speedLabel');
+  if (r) r.value = speed;
+  if (r2) r2.value = speed;
+  if (lbl) lbl.textContent = speed.toFixed(2) + 'x';
+  document.getElementById('autoSpeedNote').textContent = `난이도 ${levelText || ''}에 맞게 자동 설정 (${speed}x)`;
+}
+
+// A/B 대화 파싱
+function parseScript(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  const result = [];
+  for (const line of lines) {
+    const m = line.match(/^([A-Z]):\s*(.*)/);
+    if (m && m[2].trim()) result.push({ speaker: m[1], text: m[2].trim() });
+    else if (line.trim() && !line.match(/^[A-Z]:$/)) result.push({ speaker: 'N', text: line.trim() });
+  }
+  const hasDialog = result.some(r => r.speaker === 'A' || r.speaker === 'B');
+  return hasDialog ? result : [{ speaker: 'N', text: text.trim() }];
+}
+
+// 재생 상태
+let curSegments = [];
+let curSegIdx = 0;
+let curAudio = null;
+let stopRequested = false;
+let runId = 0; // 재생 세션 ID - 겹치기 방지
+
+function updateGauge(idx, total, speaker) {
+  const bar = document.getElementById('gaugeBar');
+  const label = document.getElementById('gaugeLabel');
+  const spk = document.getElementById('gaugeSpeaker');
+  if (bar) bar.style.width = total ? `${Math.round((idx / total) * 100)}%` : '0%';
+  if (label) label.textContent = total ? `${idx} / ${total} 문장` : '0 / 0 문장';
+  if (spk) spk.textContent = speaker === 'A' ? '🗣 A' : speaker === 'B' ? '🗣 B' : '';
+}
+
+async function toggleSpeak() {
+  if (isSpeaking) {
+    stopRequested = true;
+    runId++;
+    if (curAudio) { try { curAudio.pause(); } catch(e){} curAudio = null; }
+    isSpeaking = false;
+    updateTTSButtons();
+    return;
+  }
+  if (!curScript) return;
+
+  const segments = parseScript(curScript.script);
+  if (JSON.stringify(segments) !== JSON.stringify(curSegments)) {
+    curSegments = segments;
+    curSegIdx = 0;
+  }
+  if (curSegIdx >= curSegments.length) curSegIdx = 0;
+
+  stopRequested = false;
+  runId++;
+  const myRunId = runId;
+  isSpeaking = true;
+  updateTTSButtons();
+  updateGauge(curSegIdx, curSegments.length, curSegments[curSegIdx]?.speaker);
+
+  const speed = parseFloat(document.getElementById('speedRange')?.value || 0.85);
+
+  try {
+    if (ttsEngine === 'google') await runSegmentsGoogle(speed, myRunId);
+    else if (ttsEngine === 'puter') await runSegmentsPuter(speed, myRunId);
+  } catch(e) {
+    console.error('TTS 오류:', e);
+  }
+
+  if (runId === myRunId) {
+    isSpeaking = false;
+    updateTTSButtons();
+    if (curSegIdx >= curSegments.length) {
+      curSegIdx = 0;
+      updateGauge(0, curSegments.length, '');
+    }
+  }
+}
+
+const PUTER_VOICES = {
+  us: { A: 'Joanna', B: 'Matthew' },
+  uk: { A: 'Amy',    B: 'Brian'   },
+};
+
+async function playAudio(audio, speed, myRunId) {
+  return new Promise((resolve) => {
+    curAudio = audio;
+    let done = false;
+    const finish = () => { if (!done) { done = true; curAudio = null; resolve(); } };
+    if (audio.playbackRate !== undefined) audio.playbackRate = speed;
+    audio.onended = finish;
+    audio.onerror = () => { finish(); };
+    // 안전 타임아웃
+    setTimeout(finish, 30000);
+    audio.play().catch(finish);
+    // runId 바뀌면 즉시 종료
+    const check = setInterval(() => {
+      if (runId !== myRunId) { clearInterval(check); try { audio.pause(); } catch(e){} finish(); }
+    }, 100);
+    audio.onended = () => { clearInterval(check); finish(); };
+  });
+}
+
+async function runSegmentsPuter(speed, myRunId) {
+  const voices = PUTER_VOICES[selAccent] || PUTER_VOICES.us;
+  while (curSegIdx < curSegments.length && !stopRequested && runId === myRunId) {
+    const seg = curSegments[curSegIdx];
+    const voice = seg.speaker === 'B' ? voices.B : voices.A;
+    updateGauge(curSegIdx + 1, curSegments.length, seg.speaker);
+    try {
+      const audio = await puter.ai.txt2speech(seg.text, { voice, engine: 'neural' });
+      if (runId !== myRunId) break;
+      await playAudio(audio, speed, myRunId);
+      if (runId === myRunId && !stopRequested) await new Promise(r => setTimeout(r, 100));
+    } catch(e) { console.warn('Puter 건너뜀:', e.message); }
+    if (runId === myRunId && !stopRequested) curSegIdx++;
+  }
+}
+
+// OpenAI 목소리
+
+// ── Google Cloud TTS ──
+// A/B 목소리: 억양별 여성(A)/남성(B) Neural 음성
+const GOOGLE_VOICES = {
+  us: { A: 'en-US-Neural2-F', B: 'en-US-Neural2-D' },
+  uk: { A: 'en-GB-Neural2-A', B: 'en-GB-Neural2-B' },
+  in: { A: 'en-IN-Neural2-A', B: 'en-IN-Neural2-B' },
+};
+
+async function googleTTS(text, voiceName, speed) {
+  if (!ttsKeys.google) throw new Error('Google TTS 키 없음');
+  const langCode = voiceName.slice(0, 5); // en-US, en-GB, en-IN
+  const res = await fetch(
+    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${ttsKeys.google}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: { text },
+        voice: { languageCode: langCode, name: voiceName },
+        audioConfig: { audioEncoding: 'MP3', speakingRate: speed }
+      })
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || res.status);
+  }
+  const data = await res.json();
+  // base64 MP3 → Blob → URL
+  const binary = atob(data.audioContent);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: 'audio/mp3' }));
+}
+
+async function runSegmentsGoogle(speed, myRunId) {
+  if (!ttsKeys.google) {
+    document.getElementById('ttsKeyNote').style.display = 'block';
+    alert('Google TTS 키가 없어요.\nSupabase app_config에 google_tts_key를 추가하세요.');
+    return;
+  }
+  const voices = GOOGLE_VOICES[selAccent] || GOOGLE_VOICES.us;
+  while (curSegIdx < curSegments.length && runId === myRunId) {
+    const seg = curSegments[curSegIdx];
+    const voiceName = seg.speaker === 'B' ? voices.B : voices.A;
+    updateGauge(curSegIdx + 1, curSegments.length, seg.speaker);
+    try {
+      const url = await googleTTS(seg.text, voiceName, speed);
+      if (runId !== myRunId) { URL.revokeObjectURL(url); break; }
+      const audio = new Audio(url);
+      await playAudio(audio, 1, myRunId);
+      URL.revokeObjectURL(url);
+      if (runId === myRunId) await new Promise(r => setTimeout(r, 80));
+    } catch(e) { console.warn('Google TTS 건너뜀:', e.message); }
+    if (runId === myRunId) curSegIdx++;
+  }
+}
+
+
+function updateTTSButtons() {
+  const btn = document.getElementById('ttsBtn');
+  if (btn) {
+    btn.textContent = isSpeaking ? '⏹ 정지' : '▶ 듣기 시작';
+    btn.style.background = isSpeaking ? '#ef4444' : 'linear-gradient(135deg,#6366f1,#8b5cf6)';
+  }
+}
+
+// ──────────────────────────────────────────
+//  GEMINI API (웹검색 포함 버전)
+// ──────────────────────────────────────────
+
+// ──────────────────────────────────────────
+//  GEMINI 공통 재시도 헬퍼
+// ──────────────────────────────────────────
+function parseRetryWait(msg) {
+  const m = msg.match(/retry in ([\d.]+)s/i);
+  return m ? Math.ceil(parseFloat(m[1])) + 3 : null;
+}
+
+async function geminiRetryWait(retryCount, msg, btnId) {
+  const wait = parseRetryWait(msg) || [15, 30, 60, 60, 60][Math.min(retryCount, 4)];
+  console.log(`Gemini 재시도 ${retryCount+1}회 (${wait}초 후)...`);
+  const btn = document.getElementById(btnId || 'genScriptBtn') || document.getElementById('aiAnalysisBtn');
+  const orig = btn ? btn.innerHTML : '';
+  for (let i = wait; i > 0; i--) {
+    if (btn) btn.innerHTML = `<span>⏳ ${i}초 후 재시도...</span>`;
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  if (btn && orig) btn.innerHTML = orig;
+}
+
+async function callGeminiWithSearch(prompt, retryCount = 0) {
+  if (!GEMINI_KEY) throw new Error('Gemini 키를 불러오지 못했습니다.');
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+      generationConfig: { temperature: 0.3 }
+    })
+  });
+  const d = await res.json();
+  if (d.error) {
+    const code = d.error.code;
+    const msg = d.error.message || '';
+    const isRetryable = code === 429 || code === 503
+      || msg.toLowerCase().includes('high demand')
+      || msg.toLowerCase().includes('overloaded')
+      || msg.toLowerCase().includes('temporarily')
+      || msg.toLowerCase().includes('quota')
+      || msg.toLowerCase().includes('retry');
+    if (isRetryable && retryCount < 5) {
+      await geminiRetryWait(retryCount, msg, 'aiAnalysisBtn');
+      return callGeminiWithSearch(prompt, retryCount + 1);
+    }
+    throw new Error(d.error.message);
+  }
+  const txt = d.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || '';
+  return txt.replace(/```json|```/g, '').trim();
+}
+
+// ──────────────────────────────────────────
+//  GEMINI API
+// ──────────────────────────────────────────
+async function callGemini(prompt, retryCount = 0, model = 'gemini-2.5-flash') {
+  if (!GEMINI_KEY) throw new Error('Gemini 키를 불러오지 못했습니다. DB 연결을 확인하세요.');
+  // 1.5-flash-latest → 정식 모델명
+  const modelId = model === 'gemini-2.5-flash-lite' ? 'gemini-2.5-flash-lite' : model;
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${GEMINI_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4 } })
+  });
+  const d = await res.json();
+  if (d.error) {
+    const code = d.error.code;
+    const msg = d.error.message || '';
+    const isRetryable = code === 429 || code === 503
+      || msg.toLowerCase().includes('high demand')
+      || msg.toLowerCase().includes('overloaded')
+      || msg.toLowerCase().includes('temporarily')
+      || msg.toLowerCase().includes('quota')
+      || msg.toLowerCase().includes('retry');
+    if (isRetryable && retryCount < 5) {
+      await geminiRetryWait(retryCount, msg, 'genScriptBtn');
+      return callGemini(prompt, retryCount + 1, model);
+    }
+    throw new Error(d.error.message);
+  }
+  const txt = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  return txt.replace(/```json|```/g, '').trim();
+}
+
+// ──────────────────────────────────────────
+//  UTILS
+// ──────────────────────────────────────────
+// ──────────────────────────────────────────
+//  단어 번역 팝업
+// ──────────────────────────────────────────
+let currentWord = '';
+
+async function translateWord(word) {
+  currentWord = word.replace(/['''\-]/g, '');
+  if (!currentWord) return;
+  const popup = document.getElementById('wordPopup');
+  const wordEl = document.getElementById('popupWord');
+  const meaningEl = document.getElementById('popupMeaning');
+  popup.style.display = 'block';
+  popup.style.left = '50%';
+  popup.style.transform = 'translateX(-50%)';
+  popup.style.bottom = '80px';
+  popup.style.top = 'auto';
+  wordEl.textContent = currentWord;
+  meaningEl.textContent = '번역 중...';
+  speakWord();
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(currentWord)}&langpair=en|ko`
+    );
+    const data = await res.json();
+    const translation = data.responseData?.translatedText;
+    meaningEl.textContent = (translation && translation.toLowerCase() !== currentWord.toLowerCase())
+      ? translation : '번역 결과 없음';
+  } catch(e) { meaningEl.textContent = '번역 오류'; }
+}
+
+function closeWordPopup() {
+  document.getElementById('wordPopup').style.display = 'none';
+  currentWord = '';
+}
+
+function speakWord() {
+  if (!currentWord) return;
+  if (ttsKeys.google) {
+    const voiceName = selAccent === 'uk' ? 'en-GB-Neural2-A' : 'en-US-Neural2-F';
+    fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${ttsKeys.google}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: { text: currentWord },
+        voice: { languageCode: voiceName.slice(0,5), name: voiceName },
+        audioConfig: { audioEncoding: 'MP3', speakingRate: 0.85 }
+      })
+    }).then(r => r.json()).then(d => {
+      if (d.audioContent) {
+        const binary = atob(d.audioContent);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        new Audio(URL.createObjectURL(new Blob([bytes], { type: 'audio/mp3' }))).play();
+      }
+    }).catch(() => {});
+  } else {
+    const utt = new SpeechSynthesisUtterance(currentWord);
+    utt.lang = 'en-US'; utt.rate = 0.85;
+    window.speechSynthesis.speak(utt);
+  }
+}
+
+document.addEventListener('click', e => {
+  const popup = document.getElementById('wordPopup');
+  if (popup && popup.style.display !== 'none' &&
+      !popup.contains(e.target) && !e.target.classList.contains('clickable-word')) {
+    closeWordPopup();
+  }
+});
+
+function dStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+initApp();
+</script>
+</body>
+</html>
